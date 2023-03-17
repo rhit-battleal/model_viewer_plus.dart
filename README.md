@@ -1,7 +1,9 @@
 # 3D Model Viewer for Flutter
 
-<https://pub.dev/packages/model_viewer> - Fork from a package that is discontinued,
+<https://pub.dev/packages/model_viewer> - Original fork from a package that is discontinued,
 and add the web support for it.
+
+<https://pub.dev/packages/model_viewer_plus> - Latest fork from a package that does not provide mobile support for Webview_flutter 4.0.0 <https://pub.dev/packages/webview_flutter>
 
 This is a [Flutter](https://flutter.dev) widget for rendering interactive
 3D models in the [glTF](https://www.khronos.org/gltf/) and
@@ -19,7 +21,6 @@ web component in a [WebView](https://pub.dev/packages/webview_flutter).
 
 - Android
 - iOS (AR View may not avaliable on iOS 16+)
-- Web, with [a recent system browser version](https://modelviewer.dev/#section-browser-support).
 
 ## Notes
 
@@ -180,40 +181,6 @@ class MyApp extends StatelessWidget {
 
 Note that due to browsers' [CORS] security restrictions, the model file
 *must* be served with a `Access-Control-Allow-Origin: *` HTTP header.
-
-## Frequently Asked Questions
-
-### Q: Why do I get the error `net::ERR_CLEARTEXT_NOT_PERMITTED`?
-
-You didn't configure your `AndroidManifest.xml` as per the installation
-instructions earlier in this document. See also [#7].
-
-### Q: Why does the example app just show a blank screen?
-
-**A:** Most likely, the platform browser version on your device or emulator is
-too old and does not support the features that Model Viewer needs.
-
-For example, the stock Chrome version on the Android 10 emulator is too old
-and will display a blank screen; it must be upgraded from the Play Store in
-order to use this package. (The stock Chrome version on the Android 11
-emulator works fine, however.) See [google/model-viewer#1109].
-
-### Q: Why doesn't my 3D model load and/or render?
-
-**A:** There are several reasons why your model URL could fail to load and
-render:
-
-1. It might not be possible to load the model URL due to [CORS] security
-   restrictions. The server hosting the model file *must* send appropriate
-   CORS response headers for Model Viewer to be able to load the file.
-   See [google/model-viewer#1015].
-
-2. It might not be possible to parse the provided glTF or GLB file.
-   Some tools can produce invalid files when exporting glTF. Always
-   run your model files through the [glTF Validator] to check for this.
-
-3. The platform browser might not support the features that Model Viewer
-   needs. See [google/model-viewer#1109].
 
 [#7]:                       https://github.com/drydart/model_viewer.dart/issues/7
 [CORS]:                     https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
