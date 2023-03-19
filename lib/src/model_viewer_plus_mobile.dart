@@ -30,6 +30,7 @@ class ModelViewerState extends State<ModelViewer> {
   void initState() {
     super.initState();
     _initProxy();
+    initController();
   }
 
   @override
@@ -69,7 +70,7 @@ class ModelViewerState extends State<ModelViewer> {
     }
   }
 
-  WebViewController initController() async {
+  void initController() async {
     controller = WebViewController()
       ..setBackgroundColor(Colors.transparent)
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
