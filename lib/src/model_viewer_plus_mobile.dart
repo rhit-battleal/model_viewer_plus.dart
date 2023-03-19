@@ -21,7 +21,7 @@ import 'html_builder.dart';
 import 'model_viewer_plus.dart';
 
 class ModelViewerState extends State<ModelViewer> {
-  final controller = WebViewController();
+  late WebViewController controller;
 
   HttpServer? _proxy;
   late String _proxyURL;
@@ -70,7 +70,7 @@ class ModelViewerState extends State<ModelViewer> {
   }
 
   WebViewController initController() async {
-    controller = controller
+    controller = WebViewController()
       ..setBackgroundColor(Colors.transparent)
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(NavigationDelegate(
