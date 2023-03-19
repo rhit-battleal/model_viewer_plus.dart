@@ -81,7 +81,6 @@ class ModelViewer extends StatefulWidget {
     this.relatedCss,
     this.relatedJs,
     this.id,
-    this.debugLogging = true,
     this.overwriteNodeValidatorBuilder,
     this.javascriptChannels,
     this.onWebViewCreated,
@@ -571,11 +570,6 @@ class ModelViewer extends StatefulWidget {
   /// The id of the [ModelViewer] in HTML.
   final String? id;
 
-  /// If false, [HTMLBuilder] will not print debug logs.
-  ///
-  /// Defaults to true;
-  final bool? debugLogging;
-
   /// Customize allowed tags & attrubutes for Web platform.
   ///
   /// Solution of console output `Removing disallowed attribute ...`.
@@ -615,7 +609,7 @@ class ModelViewer extends StatefulWidget {
   final NodeValidatorBuilder? overwriteNodeValidatorBuilder;
 
   /// Passthrough to `javascriptChannels` in the underlying `WebView`.
-  final Set<JavascriptChannel>? javascriptChannels;
+  final Map<String, dynamic>? javascriptChannels;
 
   /// Passthrough to `onWebViewCreated` in the underlying `WebView`.
   ///
