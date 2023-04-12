@@ -22,15 +22,14 @@ import 'model_viewer_plus.dart';
 
 class ModelViewerState extends State<ModelViewer> {
   late WebViewController controller;
-
+  late WebViewWidget webView;
   HttpServer? _proxy;
   late String _proxyURL;
 
   @override
   void initState() {
     super.initState();
-    _initProxy();
-    initController();
+    _initProxy().then((value) => initController());
   }
 
   @override
@@ -43,87 +42,31 @@ class ModelViewerState extends State<ModelViewer> {
   }
 
   @override
-  void didUpdateWidget(final ModelViewer oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // TODO
-  }
-
-  @override
   Widget build(final BuildContext context) {
-    if (_proxy == null || controller = null) {
+    if (_proxy == null || controller == null) {
       return Center(
         child: CircularProgressIndicator(
           semanticsLabel: 'Loading Model Viewer...',
         ),
       );
     } else {
-      widget = WebViewWidget(
-        controller: controller,
-        gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
-          Factory<OneSequenceGestureRecognizer>(
-            () => EagerGestureRecognizer(),
-          ),
-        }
-      );
+      webView = WebViewWidget(
+          controller: controller,
+          gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+            Factory<OneSequenceGestureRecognizer>(
+              () => EagerGestureRecognizer(),
+            ),
+          });
       widget.onWebViewCreated?.call(controller);
-      return 
+      return webView;
     }
   }
 
   void initController() async {
     controller = WebViewController()
       ..setBackgroundColor(Colors.transparent)
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setNavigationDelegate(NavigationDelegate(
-          onNavigationRequest: (final NavigationRequest navigation) async {
-        debugPrint(
-            '>>>> ModelViewer wants to load: <${navigation.url}>'); // DEBUG
-        if (!Platform.isAndroid) {
-          if (Platform.isIOS && navigation.url == widget.iosSrc) {
-            // TODO: Migrate to launchUrl()
-            await launch(
-              navigation.url,
-              forceSafariVC: true,
-            );
-            return NavigationDecision.prevent;
-          }
-          return NavigationDecision.navigate;
-        }
-        if (!navigation.url.startsWith("intent://")) {
-          return NavigationDecision.navigate;
-        }
-        try {
-          final String fileURL;
-          if (['http', 'https'].contains(Uri.parse(widget.src).scheme)) {
-            fileURL = widget.src;
-          } else {
-            fileURL = p.joinAll([_proxyURL, 'model']);
-          }
-          final intent = android_content.AndroidIntent(
-            action: "android.intent.action.VIEW", // Intent.ACTION_VIEW
-            data: Uri(
-                scheme: 'https',
-                host: 'arvr.google.com',
-                path: '/scene-viewer/1.0',
-                queryParameters: {
-                  'mode': 'ar_preferred',
-                  'file': fileURL,
-                }).toString(),
-            package: "com.google.android.googlequicksearchbox",
-            arguments: <String, dynamic>{
-              'browser_fallback_url':
-                  'market://details?id=com.google.android.googlequicksearchbox'
-            },
-          );
-          await intent.launch().onError((error, stackTrace) {
-            debugPrint('>>>> ModelViewer Intent Error: $error'); // DEBUG
-          });
-        } catch (error) {
-          debugPrint('>>>> ModelViewer failed to launch AR: $error'); // DEBUG
-        }
-        return NavigationDecision.prevent;
-      }));
-    widget.javascriptChannels.forEach((key, value) {
+      ..setJavaScriptMode(JavaScriptMode.unrestricted);
+    widget.javascriptChannels?.forEach((key, value) {
       controller.addJavaScriptChannel(key, onMessageReceived: value);
     });
     await controller.loadRequest(Uri.parse(_proxyURL));
@@ -132,7 +75,7 @@ class ModelViewerState extends State<ModelViewer> {
   String _buildHTML(final String htmlTemplate) {
     return HTMLBuilder.build(
       htmlTemplate: htmlTemplate,
-      src: '/model',
+      src: '/initModel',
       alt: widget.alt,
       poster: widget.poster,
       loading: widget.loading,
@@ -208,8 +151,9 @@ class ModelViewerState extends State<ModelViewer> {
     });
 
     _proxy!.listen((final HttpRequest request) async {
-      //debugPrint("${request.method} ${request.uri}"); // DEBUG
-      //debugPrint(request.headers); // DEBUG
+      debugPrint("${request.method} ${request.uri}"); // DEBUG
+      debugPrint(request.headers.toString()); // DEBUG
+
       final response = request.response;
 
       switch (request.uri.path) {
@@ -238,14 +182,21 @@ class ModelViewerState extends State<ModelViewer> {
           await response.close();
           break;
 
-        case '/model':
-          if (url.isAbsolute && !url.isScheme("file")) {
-            // debugPrint(url.toString());
-            await response.redirect(url); // TODO: proxy the resource
-          } else {
-            final data = await (url.isScheme("file")
-                ? _readFile(url.path)
-                : _readAsset(url.path));
+        case '/initModel':
+          final data = await _readAsset(Uri.parse(widget.src).path);
+          response
+            ..statusCode = HttpStatus.ok
+            ..headers.add("Content-Type", "application/octet-stream")
+            ..headers.add("Content-Length", data.lengthInBytes.toString())
+            ..headers.add("Access-Control-Allow-Origin", "*")
+            ..add(data);
+          await response.close();
+          break;
+
+        default:
+          if (request.uri.hasAbsolutePath) {
+            var modelName = request.uri.path.replaceFirst("/", "");
+            final data = await _readAsset(modelName);
             response
               ..statusCode = HttpStatus.ok
               ..headers.add("Content-Type", "application/octet-stream")
@@ -254,44 +205,6 @@ class ModelViewerState extends State<ModelViewer> {
               ..add(data);
             await response.close();
           }
-          break;
-
-        case '/favicon.ico':
-          final text = utf8.encode("Resource '${request.uri}' not found");
-          response
-            ..statusCode = HttpStatus.notFound
-            ..headers.add("Content-Type", "text/plain;charset=UTF-8")
-            ..headers.add("Content-Length", text.length.toString())
-            ..add(text);
-          await response.close();
-          break;
-
-        default:
-          if (request.uri.isAbsolute) {
-            debugPrint("Redirect: ${request.uri}");
-            await response.redirect(request.uri);
-          } else if (request.uri.hasAbsolutePath) {
-            // Some gltf models need other resources from the origin
-            var pathSegments = [...url.pathSegments];
-            pathSegments.removeLast();
-            var tryDestination = p.joinAll([
-              url.origin,
-              ...pathSegments,
-              request.uri.path.replaceFirst('/', '')
-            ]);
-            debugPrint("Try: $tryDestination");
-            await response.redirect(Uri.parse(tryDestination));
-          } else {
-            debugPrint('404 with ${request.uri}');
-            final text = utf8.encode("Resource '${request.uri}' not found");
-            response
-              ..statusCode = HttpStatus.notFound
-              ..headers.add("Content-Type", "text/plain;charset=UTF-8")
-              ..headers.add("Content-Length", text.length.toString())
-              ..add(text);
-            await response.close();
-            break;
-          }
       }
     });
   }
@@ -299,9 +212,5 @@ class ModelViewerState extends State<ModelViewer> {
   Future<Uint8List> _readAsset(final String key) async {
     final data = await rootBundle.load(key);
     return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
-  }
-
-  Future<Uint8List> _readFile(final String path) async {
-    return await File(path).readAsBytes();
   }
 }
